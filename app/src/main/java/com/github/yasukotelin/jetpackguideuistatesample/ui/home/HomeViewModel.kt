@@ -18,7 +18,8 @@ data class CardData(
 
 data class UiState(
     val isLoading: Boolean,
-    val cards: List<CardData>
+    val cards: List<CardData>,
+    val snackbarMessage: String,
 )
 
 class HomeViewModel : ViewModel() {
@@ -27,13 +28,14 @@ class HomeViewModel : ViewModel() {
         UiState(
             isLoading = true,
             cards = emptyList(),
+            snackbarMessage = "",
         )
     )
     val uiState: StateFlow<UiState> get() = _uiState
 
     init {
         viewModelScope.launch {
-            updateLoading(true)
+            _uiState.update { it.copy(isLoading = true) }
 
             // Emulate fetch card data.
             delay(2000)
@@ -47,24 +49,28 @@ class HomeViewModel : ViewModel() {
                     enable = true,
                 )
             }
-            _uiState.update { it.copy(cards = cards) }
-
-            updateLoading(false)
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    cards = cards,
+                    snackbarMessage = "card list loaded!"
+                )
+            }
         }
     }
 
-    private fun updateLoading(isLoading: Boolean) {
-        _uiState.update { it.copy(isLoading = isLoading) }
+    fun shownSnackbar() {
+        _uiState.update { it.copy(snackbarMessage = "") }
     }
 
-    fun onClickCard(id: Int) {
+    fun onClick(card: CardData) {
         _uiState.update {
-            val updated = it.cards.map { card ->
-                card.copy(
-                    enable = if (card.id == id) {
-                        !card.enable
+            val updated = it.cards.map { c ->
+                c.copy(
+                    enable = if (c == card) {
+                        !c.enable
                     } else {
-                        card.enable
+                        c.enable
                     }
                 )
             }

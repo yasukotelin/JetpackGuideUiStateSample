@@ -2,6 +2,7 @@ package com.github.yasukotelin.jetpackguideuistatesample.ui.home
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Card
@@ -10,18 +11,23 @@ import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.rememberImagePainter
 
 @ExperimentalMaterialApi
 @Composable
-fun LabelCard(modifier: Modifier = Modifier, card: CardData, onClick: (id: Int) -> Unit) {
+fun LabelCard(
+    modifier: Modifier = Modifier,
+    card: CardData,
+    onClick: (card: CardData) -> Unit,
+) {
     Card(
         modifier = modifier.wrapContentHeight(),
         shape = RoundedCornerShape(8.dp),
         elevation = 4.dp,
-        onClick = { onClick(card.id) },
+        onClick = { onClick(card) },
     ) {
         Box(Modifier.fillMaxWidth()) {
             Row(modifier = Modifier.fillMaxWidth()) {
