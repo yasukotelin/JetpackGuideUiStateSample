@@ -2,8 +2,10 @@ package com.github.yasukotelin.jetpackguideuistatesample.ui.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class CardData(
@@ -14,33 +16,59 @@ data class CardData(
     val enable: Boolean,
 )
 
+data class UiState(
+    val isLoading: Boolean,
+    val cards: List<CardData>
+)
+
 class HomeViewModel : ViewModel() {
 
-    private val _cards = MutableStateFlow(
-        (1..20).toList().map {
-            CardData(
-                id = it,
-                url = "https://placehold.jp/3d4070/ffffff/80x80.png?text=Image",
-                title = "Card $it",
-                description = "description description",
-                enable = true,
-            )
-        }
+    private val _uiState = MutableStateFlow(
+        UiState(
+            isLoading = true,
+            cards = emptyList(),
+        )
     )
-    val cards: StateFlow<List<CardData>> get() = _cards
+    val uiState: StateFlow<UiState> get() = _uiState
+
+    init {
+        viewModelScope.launch {
+            updateLoading(true)
+
+            // Emulate fetch card data.
+            delay(2000)
+
+            val cards = (1..20).toList().map {
+                CardData(
+                    id = it,
+                    url = "https://placehold.jp/3d4070/ffffff/80x80.png?text=Image",
+                    title = "Card $it",
+                    description = "description description",
+                    enable = true,
+                )
+            }
+            _uiState.update { it.copy(cards = cards) }
+
+            updateLoading(false)
+        }
+    }
+
+    private fun updateLoading(isLoading: Boolean) {
+        _uiState.update { it.copy(isLoading = isLoading) }
+    }
 
     fun onClickCard(id: Int) {
-        viewModelScope.launch {
-            val update = cards.value.map {
-                it.copy(
-                    enable = if (it.id == id) {
-                        !it.enable
+        _uiState.update {
+            val updated = it.cards.map { card ->
+                card.copy(
+                    enable = if (card.id == id) {
+                        !card.enable
                     } else {
-                        it.enable
+                        card.enable
                     }
                 )
             }
-            _cards.emit(update)
+            it.copy(cards = updated)
         }
     }
 }
