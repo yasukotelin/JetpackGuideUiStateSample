@@ -66,7 +66,7 @@ fun HomeScreen(
                 modifier = Modifier.fillMaxSize(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                item { Header("State with Recompose") }
+                item { Header("Jetpack Guide Ui State Sample") }
                 item { Spacer(modifier = Modifier.height(16.dp)) }
 
                 if (uiState.cards.isNotEmpty()) {
