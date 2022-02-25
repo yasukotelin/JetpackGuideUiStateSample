@@ -2,24 +2,20 @@ package com.github.yasukotelin.jetpackguideuistatesample.ui.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.github.yasukotelin.jetpackguideuistatesample.model.CardData
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-data class CardData(
-    val id: Int,
-    val url: String,
-    val title: String,
-    val description: String,
-    val enable: Boolean,
-)
-
 data class UiState(
     val isLoading: Boolean,
+    val isSwipeRefreshing: Boolean,
     val cards: List<CardData>,
     val snackbarMessage: String,
+
+    val navigateThirdScreen: Int?,
 )
 
 class HomeViewModel : ViewModel() {
@@ -27,8 +23,10 @@ class HomeViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(
         UiState(
             isLoading = true,
+            isSwipeRefreshing = false,
             cards = emptyList(),
             snackbarMessage = "",
+            navigateThirdScreen = null,
         )
     )
     val uiState: StateFlow<UiState> get() = _uiState
@@ -40,15 +38,7 @@ class HomeViewModel : ViewModel() {
             // Emulate fetch card data.
             delay(2000)
 
-            val cards = (1..20).toList().map {
-                CardData(
-                    id = it,
-                    url = "https://placehold.jp/3d4070/ffffff/80x80.png?text=Image",
-                    title = "Card $it",
-                    description = "description description",
-                    enable = true,
-                )
-            }
+            val cards = fetchCards()
             _uiState.update {
                 it.copy(
                     isLoading = false,
@@ -56,6 +46,30 @@ class HomeViewModel : ViewModel() {
                     snackbarMessage = "card list loaded!"
                 )
             }
+        }
+    }
+
+    fun onSwipeRefresh() = viewModelScope.launch {
+        _uiState.update { it.copy(isSwipeRefreshing = true) }
+
+        delay(1000)
+
+        val cards = fetchCards()
+
+        _uiState.update {
+            it.copy(isSwipeRefreshing = false, cards = cards, snackbarMessage = "Refreshed!")
+        }
+    }
+
+    private fun fetchCards(): List<CardData> {
+        return (1..20).toList().map {
+            CardData(
+                id = it,
+                url = "https://placehold.jp/3d4070/ffffff/80x80.png?text=Image",
+                title = "Card $it",
+                description = "description description",
+                enable = true,
+            )
         }
     }
 
@@ -75,6 +89,19 @@ class HomeViewModel : ViewModel() {
                 )
             }
             it.copy(cards = updated)
+        }
+    }
+
+    fun onClickGoToThirdScreen() {
+        _uiState.update {
+            val count = it.cards.count { c -> c.enable.not() }
+            it.copy(navigateThirdScreen = count)
+        }
+    }
+
+    fun consumeNavigateThirdScreen() {
+        _uiState.update {
+            it.copy(navigateThirdScreen = null)
         }
     }
 }

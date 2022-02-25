@@ -1,4 +1,4 @@
-package com.github.yasukotelin.jetpackguideuistatesample.ui.second
+package com.github.yasukotelin.jetpackguideuistatesample.ui.third
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -10,14 +10,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 
 @Composable
-fun SecondScreen() {
+fun ThirdScreen(count: Int) {
     Scaffold(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Text("Second page!")
+            Text("selected count is $count")
         }
     }
 }
