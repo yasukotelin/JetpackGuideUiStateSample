@@ -1,5 +1,6 @@
 package com.github.yasukotelin.jetpackguideuistatesample.ui.home
 
+import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -7,6 +8,7 @@ import androidx.compose.material.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
@@ -17,6 +19,7 @@ import com.github.yasukotelin.jetpackguideuistatesample.model.CardData
 import com.github.yasukotelin.jetpackguideuistatesample.ui.theme.JetpackGuideUiStateSampleTheme
 import com.google.accompanist.swiperefresh.SwipeRefresh
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
+import kotlinx.coroutines.launch
 
 @ExperimentalMaterialApi
 @Composable
@@ -37,7 +40,7 @@ fun HomeScreen(
         onClickGoToThirdScreen = { viewModel.onClickGoToThirdScreen() },
     )
 
-    uiEvents.value.firstOrNull()?.let {
+    uiEvents.value.forEach {
         when (it) {
             is UiEventState.NavigateSecondScreen -> {
                 viewModel.consume(it)
@@ -122,15 +125,17 @@ fun HomeScreen(
         }
     }
 
-    uiEvents.firstOrNull()?.let {
+    val scope = rememberCoroutineScope()
+    uiEvents.forEach {
         if (it is UiEventState.ShowSnackbar) {
-            LaunchedEffect(scaffoldState.snackbarHostState) {
+            scope.launch {
+                Log.d("UiEvents", it.toString())
                 scaffoldState.snackbarHostState.showSnackbar(
                     message = it.message,
                     duration = SnackbarDuration.Short
                 )
-                consume(it)
             }
+            consume(it)
         }
     }
 }
