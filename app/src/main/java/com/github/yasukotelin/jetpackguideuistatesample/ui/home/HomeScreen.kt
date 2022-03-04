@@ -1,5 +1,6 @@
 package com.github.yasukotelin.jetpackguideuistatesample.ui.home
 
+import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -7,6 +8,7 @@ import androidx.compose.material.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
@@ -17,6 +19,7 @@ import com.github.yasukotelin.jetpackguideuistatesample.model.CardData
 import com.github.yasukotelin.jetpackguideuistatesample.ui.theme.JetpackGuideUiStateSampleTheme
 import com.google.accompanist.swiperefresh.SwipeRefresh
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
+import kotlinx.coroutines.launch
 
 @ExperimentalMaterialApi
 @Composable
@@ -25,21 +28,30 @@ fun HomeScreen(
     navController: NavHostController,
 ) {
     val uiState = viewModel.uiState.collectAsState()
+    val uiEvents = viewModel.uiEvents.collectAsState()
 
     HomeScreen(
         uiState = uiState.value,
+        uiEvents = uiEvents.value,
+        consume = { e -> viewModel.consume(e) },
         onSwipeRefresh = { viewModel.onSwipeRefresh() },
         onClick = viewModel::onClick,
-        onClickGoToSecondScreen = {
-            navController.navigate("second")
-        },
+        onClickGoToSecondScreen = { viewModel.onClickGoToSecondScreen() },
         onClickGoToThirdScreen = { viewModel.onClickGoToThirdScreen() },
-        shownSnackbar = { viewModel.shownSnackbar() }
     )
 
-    uiState.value.navigateThirdScreen?.let {
-        viewModel.consumeNavigateThirdScreen()
-        navController.navigate("third/$it")
+    uiEvents.value.forEach {
+        when (it) {
+            is UiEventState.NavigateSecondScreen -> {
+                viewModel.consume(it)
+                navController.navigate("second")
+            }
+            is UiEventState.NavigateThirdScreen -> {
+                viewModel.consume(it)
+                navController.navigate("third/${it.selectedCount}")
+            }
+            else -> {}
+        }
     }
 }
 
@@ -47,11 +59,12 @@ fun HomeScreen(
 @Composable
 fun HomeScreen(
     uiState: UiState,
+    uiEvents: List<UiEventState>,
+    consume: (UiEventState) -> Unit,
     onSwipeRefresh: () -> Unit,
     onClick: (card: CardData) -> Unit,
     onClickGoToSecondScreen: () -> Unit,
     onClickGoToThirdScreen: () -> Unit,
-    shownSnackbar: () -> Unit,
     scaffoldState: ScaffoldState = rememberScaffoldState()
 ) {
     Scaffold(
@@ -112,13 +125,17 @@ fun HomeScreen(
         }
     }
 
-    if (uiState.snackbarMessage.isNotEmpty()) {
-        LaunchedEffect(scaffoldState.snackbarHostState) {
-            scaffoldState.snackbarHostState.showSnackbar(
-                message = uiState.snackbarMessage,
-                duration = SnackbarDuration.Short
-            )
-            shownSnackbar()
+    val scope = rememberCoroutineScope()
+    uiEvents.forEach {
+        if (it is UiEventState.ShowSnackbar) {
+            scope.launch {
+                Log.d("UiEvents", it.toString())
+                scaffoldState.snackbarHostState.showSnackbar(
+                    message = it.message,
+                    duration = SnackbarDuration.Short
+                )
+            }
+            consume(it)
         }
     }
 }
@@ -133,14 +150,13 @@ fun DefaultPreview() {
                 isLoading = true,
                 isSwipeRefreshing = false,
                 cards = listOf(),
-                snackbarMessage = "",
-                navigateThirdScreen = null
             ),
+            uiEvents = listOf(),
+            consume = {},
             onSwipeRefresh = {},
             onClick = {},
             onClickGoToSecondScreen = {},
             onClickGoToThirdScreen = {},
-            shownSnackbar = {},
         )
     }
 }

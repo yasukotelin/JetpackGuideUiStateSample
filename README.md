@@ -14,59 +14,102 @@ Not using eventbus(SingleLiveEvent, SharedFlow and Channel)
 
 <img src="https://user-images.githubusercontent.com/31115673/155674983-931a7a98-9d51-444d-a6bd-af6dda98d551.gif" width="320px" />
 
-## Ui state
+## Ui state and Ui event state
 
 ```kotlin
 data class UiState(
     val isLoading: Boolean,
     val isSwipeRefreshing: Boolean,
     val cards: List<CardData>,
-    val snackbarMessage: String,
-
-    val navigateThirdScreen: Int?,
 )
+
+sealed interface UiEventState {
+    data class ShowSnackbar(val message: String) : UiEventState
+    object NavigateSecondScreen : UiEventState
+    data class NavigateThirdScreen(val selectedCount: Int) : UiEventState
+}
+```
+
+## Only use StateFlow
+
+```kotlin
+private val _uiState = MutableStateFlow(
+    UiState(
+        isLoading = true,
+        isSwipeRefreshing = false,
+        cards = emptyList(),
+    )
+)
+val uiState = _uiState.asStateFlow()
+
+private val _uiEvents = MutableStateFlow(listOf<UiEventState>())
+val uiEvents = _uiEvents.asStateFlow()
+
+init {
+    viewModelScope.launch {
+        _uiState.update { it.copy(isLoading = true) }
+
+        // Emulate fetch card data.
+        delay(2000)
+
+        val cards = fetchCards()
+        _uiState.update {
+            it.copy(
+                isLoading = false,
+                cards = cards,
+            )
+        }
+        _uiEvents.update { it + UiEventState.ShowSnackbar("card list loaded!") }
+    }
+}
+
+fun onClickGoToSecondScreen() {
+    _uiEvents.update { it + UiEventState.NavigateSecondScreen }
+}
 ```
 
 ## Consume events
 
-After snackbar and navigate, you need to consume the event.
+After show snackbar and navigate, you need to consume the event.
 
 ```kotlin
 
 class HomeViewModel : ViewModel() {
     // ....
 
-    fun shownSnackbar() {
-        _uiState.update { it.copy(snackbarMessage = "") }
+    fun consume(target: UiEventState) {
+        val filtered = uiEvents.value.filterNot { it == target }
+        _uiEvents.update { filtered }
     }
 }
 
 @Composable
 fun HomeScreen() {
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        scaffoldState = scaffoldState,
-    ) {
-        
-        // ....
+    // ....
 
-        if (uiState.snackbarMessage.isNotEmpty()) {
-            LaunchedEffect(scaffoldState.snackbarHostState) {
-                scaffoldState.snackbarHostState.showSnackbar(
-                    message = uiState.snackbarMessage,
-                    duration = SnackbarDuration.Short
-                )
-
-                // consume event
-                shownSnackbar()
+    uiEvents.value.forEach {
+        when (it) {
+            is UiEventState.NavigateSecondScreen -> {
+                viewModel.consume(it)
+                navController.navigate("second")
             }
+            is UiEventState.NavigateThirdScreen -> {
+                viewModel.consume(it)
+                navController.navigate("third/${it.selectedCount}")
+            }
+            else -> {}
         }
     }
 }
-
 ```
 
+## Refer articles
 
-### Author
+- [Androide developer guide to app architecture - UI events](https://developer.android.com/jetpack/guide/ui-layer/events?utm_source=pocket_mylist)
+- [ViewModelイベントの実装](https://star-zero.medium.com/viewmodel%E3%82%A4%E3%83%99%E3%83%B3%E3%83%88%E3%81%AE%E5%AE%9F%E8%A3%85-74dd814deb97)
+
+
+
+## Author
 
 yasukotelin

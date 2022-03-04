@@ -5,7 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.github.yasukotelin.jetpackguideuistatesample.model.CardData
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -13,10 +13,13 @@ data class UiState(
     val isLoading: Boolean,
     val isSwipeRefreshing: Boolean,
     val cards: List<CardData>,
-    val snackbarMessage: String,
-
-    val navigateThirdScreen: Int?,
 )
+
+sealed interface UiEventState {
+    data class ShowSnackbar(val message: String) : UiEventState
+    object NavigateSecondScreen : UiEventState
+    data class NavigateThirdScreen(val selectedCount: Int) : UiEventState
+}
 
 class HomeViewModel : ViewModel() {
 
@@ -25,11 +28,17 @@ class HomeViewModel : ViewModel() {
             isLoading = true,
             isSwipeRefreshing = false,
             cards = emptyList(),
-            snackbarMessage = "",
-            navigateThirdScreen = null,
         )
     )
-    val uiState: StateFlow<UiState> get() = _uiState
+    val uiState = _uiState.asStateFlow()
+
+    private val _uiEvents = MutableStateFlow(listOf<UiEventState>())
+    val uiEvents = _uiEvents.asStateFlow()
+
+    fun consume(target: UiEventState) {
+        val filtered = uiEvents.value.filterNot { it == target }
+        _uiEvents.update { filtered }
+    }
 
     init {
         viewModelScope.launch {
@@ -43,9 +52,9 @@ class HomeViewModel : ViewModel() {
                 it.copy(
                     isLoading = false,
                     cards = cards,
-                    snackbarMessage = "card list loaded!"
                 )
             }
+            _uiEvents.update { it + UiEventState.ShowSnackbar("card list loaded!") }
         }
     }
 
@@ -57,8 +66,9 @@ class HomeViewModel : ViewModel() {
         val cards = fetchCards()
 
         _uiState.update {
-            it.copy(isSwipeRefreshing = false, cards = cards, snackbarMessage = "Refreshed!")
+            it.copy(isSwipeRefreshing = false, cards = cards)
         }
+        _uiEvents.update { it + UiEventState.ShowSnackbar("Refreshed!") }
     }
 
     private fun fetchCards(): List<CardData> {
@@ -71,10 +81,6 @@ class HomeViewModel : ViewModel() {
                 enable = true,
             )
         }
-    }
-
-    fun shownSnackbar() {
-        _uiState.update { it.copy(snackbarMessage = "") }
     }
 
     fun onClick(card: CardData) {
@@ -92,16 +98,14 @@ class HomeViewModel : ViewModel() {
         }
     }
 
-    fun onClickGoToThirdScreen() {
-        _uiState.update {
-            val count = it.cards.count { c -> c.enable.not() }
-            it.copy(navigateThirdScreen = count)
-        }
+    fun onClickGoToSecondScreen() {
+        _uiEvents.update { it + UiEventState.NavigateSecondScreen }
     }
 
-    fun consumeNavigateThirdScreen() {
-        _uiState.update {
-            it.copy(navigateThirdScreen = null)
+    fun onClickGoToThirdScreen() {
+        val count = uiState.value.cards.count { c -> c.enable.not() }
+        _uiEvents.update {
+            it + UiEventState.NavigateThirdScreen(count)
         }
     }
 }
