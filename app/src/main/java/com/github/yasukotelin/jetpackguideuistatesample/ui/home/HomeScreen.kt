@@ -25,21 +25,30 @@ fun HomeScreen(
     navController: NavHostController,
 ) {
     val uiState = viewModel.uiState.collectAsState()
+    val uiEvents = viewModel.uiEvents.collectAsState()
 
     HomeScreen(
         uiState = uiState.value,
+        uiEvents = uiEvents.value,
+        consume = { e -> viewModel.consume(e) },
         onSwipeRefresh = { viewModel.onSwipeRefresh() },
         onClick = viewModel::onClick,
-        onClickGoToSecondScreen = {
-            navController.navigate("second")
-        },
+        onClickGoToSecondScreen = { viewModel.onClickGoToSecondScreen() },
         onClickGoToThirdScreen = { viewModel.onClickGoToThirdScreen() },
-        shownSnackbar = { viewModel.shownSnackbar() }
     )
 
-    uiState.value.navigateThirdScreen?.let {
-        viewModel.consumeNavigateThirdScreen()
-        navController.navigate("third/$it")
+    uiEvents.value.firstOrNull()?.let {
+        when (it) {
+            is UiEventState.NavigateSecondScreen -> {
+                viewModel.consume(it)
+                navController.navigate("second")
+            }
+            is UiEventState.NavigateThirdScreen -> {
+                viewModel.consume(it)
+                navController.navigate("third/${it.selectedCount}")
+            }
+            else -> {}
+        }
     }
 }
 
@@ -47,11 +56,12 @@ fun HomeScreen(
 @Composable
 fun HomeScreen(
     uiState: UiState,
+    uiEvents: List<UiEventState>,
+    consume: (UiEventState) -> Unit,
     onSwipeRefresh: () -> Unit,
     onClick: (card: CardData) -> Unit,
     onClickGoToSecondScreen: () -> Unit,
     onClickGoToThirdScreen: () -> Unit,
-    shownSnackbar: () -> Unit,
     scaffoldState: ScaffoldState = rememberScaffoldState()
 ) {
     Scaffold(
@@ -112,13 +122,15 @@ fun HomeScreen(
         }
     }
 
-    if (uiState.snackbarMessage.isNotEmpty()) {
-        LaunchedEffect(scaffoldState.snackbarHostState) {
-            scaffoldState.snackbarHostState.showSnackbar(
-                message = uiState.snackbarMessage,
-                duration = SnackbarDuration.Short
-            )
-            shownSnackbar()
+    uiEvents.firstOrNull()?.let {
+        if (it is UiEventState.ShowSnackbar) {
+            LaunchedEffect(scaffoldState.snackbarHostState) {
+                scaffoldState.snackbarHostState.showSnackbar(
+                    message = it.message,
+                    duration = SnackbarDuration.Short
+                )
+                consume(it)
+            }
         }
     }
 }
@@ -133,14 +145,13 @@ fun DefaultPreview() {
                 isLoading = true,
                 isSwipeRefreshing = false,
                 cards = listOf(),
-                snackbarMessage = "",
-                navigateThirdScreen = null
             ),
+            uiEvents = listOf(),
+            consume = {},
             onSwipeRefresh = {},
             onClick = {},
             onClickGoToSecondScreen = {},
             onClickGoToThirdScreen = {},
-            shownSnackbar = {},
         )
     }
 }
